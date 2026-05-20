@@ -1,0 +1,65 @@
+/* ===========================
+   PAGE & LAYOUT
+   =========================== */
+
+/* Make page content span full width and left-align it */
+body, .container-fluid {
+  margin: 0 !important;
+  padding: 0 20px !important;
+  max-width: 100% !important;
+  width: 100% !important;
+  text-align: left !important;
+}
+
+/* Make DataTables span full width */
+table.dataTable {
+  width: 100% !important;
+}
+
+/* Center wrapper for DT tables when desired */
+div.dataTables_wrapper {
+  margin: auto;
+  max-width: 1092px;
+}
+
+/* ===========================
+   HEADER STYLING
+   =========================== */
+table.dataTable thead th,
+.DTFC_LeftWrapper table.dataTable thead th,
+.DTFC_RightWrapper table.dataTable thead th,
+.DTFC_Cloned thead th {
+  background-color: #ececec !important;
+  color: black !important;
+  border: 1px solid #999  !important;
+  padding: 6px !important;
+  box-sizing: border-box;
+  white-space: nowrap;
+  text-align: left !important;
+}
+
+/* Separator for grouped columns headers */
+th.dt-separator {
+  background-color: blue; !important;
+  border-right: 2px solid #999 !important;
+}
+
+/* ===========================
+   BODY STYLING
+   =========================== */
+table.dataTable tbody td,
+.DTFC_LeftWrapper table.dataTable tbody td,
+.DTFC_RightWrapper table.dataTable tbody td,
+.DTFC_Cloned tbody td {
+  color: black;
+  border: 1px solid #999 ;
+  padding: 6px;
+  box-sizing: border-box;
+  white-space: nowrap;
+}
+
+/* Separator for grouped columns */
+td.dt-separator {
+  border-right: 2px solid #999 !important;
+}
+

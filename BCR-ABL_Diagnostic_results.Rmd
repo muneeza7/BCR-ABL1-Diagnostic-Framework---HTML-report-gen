@@ -1,0 +1,323 @@
+---
+title: "BCR::ABL1 Diagnostic Results"
+output:
+  html_document:
+    css: mystyle.css
+    df_print: paged
+---
+
+
+```{r, echo=FALSE}
+
+
+## Loading libraries
+suppressWarnings(library(pacman))
+
+suppressWarnings(p_load("tidyverse", 
+       "Biostrings", 
+       "dplyr", 
+       "stringr",
+       "renv",
+       "DT", "data.table", "htmltools", "openxlsx"))
+
+suppressWarnings(library(htmltools))
+
+
+```
+
+
+```{r, echo=FALSE}
+
+# Set working directory one level up
+setwd("../")
+
+# Extract the folder name from the working directory
+Run_ID <- basename(getwd())
+
+# Create a single-row data frame with the Run_ID
+foldername <- data.frame(Run_ID = Run_ID)
+
+# Display in a datatable
+DT::datatable(
+  foldername,
+  rownames = FALSE,
+  options = list(
+    paging = FALSE,
+    searching = FALSE,
+    ordering = FALSE,
+    info = FALSE,
+    editable = 'row',
+    dom = 't'  # Just show the table body
+  )
+)
+
+```
+
+## Sample IDs
+
+```{r, results='asis', echo=FALSE}
+
+# Dynamically read Sample_IDs file
+sample_file <- list.files("./Sample_IDs", pattern = "\\.csv$", full.names = TRUE)[1]
+
+if (!is.na(sample_file)) {
+  sample_names <- read.csv(sample_file)
+  colnames(sample_names) <- "Sample_IDs"
+
+  DT::datatable(
+    sample_names,
+    options = list(paging = F, autoWidth = F, scrollX = F),
+    rownames = FALSE
+  )
+} else {
+  cat("<div style='color: red;'>⚠️ No CSV file found in ./Sample_IDs/</div>")
+}
+
+```
+
+## Exon Deletions
+
+```{r, results='asis', echo=FALSE}
+# Dynamically load from NovelSplices folder
+splice_file <- list.files("./NovelSplices", pattern = "\\.xlsx$", full.names = TRUE)[1]
+
+if (!is.na(splice_file)) {
+  SpliceChaser <- read.xlsx(splice_file)
+
+  old_colnames <- colnames(SpliceChaser)
+  start_index <- which(old_colnames == "#PatientsWithVarCall")
+  cols_to_rename <- old_colnames[start_index:length(old_colnames)]
+
+  new_names <- str_remove(cols_to_rename, "^unique_count_")
+  new_names <- str_remove(new_names, "_S\\d+_trimmed\\.star\\.hg38_result_final\\.csv$") %>%
+    sub("_20[0-9]{6}$", "", .)
+
+  colnames(SpliceChaser)[start_index:length(old_colnames)] <- new_names
+  colnames(SpliceChaser)[as.numeric(length(colnames(SpliceChaser)))] -> lst_col
+
+  SpliceChaser %>%
+    dplyr::relocate(delSize, intronMotif, nExSkip, exon, .after = all_of(lst_col)) %>%
+    dplyr::rename(`#pts` = `#PatientsWithVarCall`, gene = geneName) -> SpliceChaser
+
+  htmltools::tagList(
+    tags$div(
+      id = "Splice-table-wrapper",
+      HTML("<style>#Splice-table-wrapper table.dataTable td.dt-separator { border-right: 2px solid #999; }</style>"),
+      DT::datatable(
+        SpliceChaser,
+        extensions = c("Buttons", "FixedHeader", "FixedColumns"),
+        options = list(
+          dom = 'Bfrtip',
+          buttons = list('copy','excel', list(extend = 'colvis', text = 'Show/Hide Columns')),
+          paging = FALSE,
+          autoWidth = F,
+          scrollX = TRUE,
+          fixedColumns = list(leftColumns = 6),
+          fixedHeader = TRUE,
+          columnDefs = list(
+            list(visible = FALSE, targets = which(names(SpliceChaser) %in% c("delSize", "intronMotif", "nExSkip", "exon")) - 1),
+            list(targets = 5, className = "dt-separator")
+          )
+        ),
+        rownames = FALSE,
+        class = 'cell-border stripe hover nowrap',
+        escape = FALSE
+      )
+    )
+  )
+} else {
+  cat("<div style='color: red;'>⚠️ No .xlsx file found in ./NovelSplices/</div>")
+}
+
+
+```
+
+## Fusions
+####### TR : Translocation
+####### DEL : Deletion
+####### DUP : Duplication
+####### INV : Inversion
+
+```{r, results='asis', echo=FALSE}
+# Dynamically load from Arriba_Fusions folder
+arriba_file <- list.files("./Arriba_Fusions", pattern = "\\.xlsx$", full.names = TRUE)[1]
+
+if (!is.na(arriba_file)) {
+  Arriba <- read.xlsx(arriba_file)
+
+  old_colnames <- colnames(Arriba)
+  start_index <- which(old_colnames == "#PatientsWithVarCall")
+  cols_to_rename <- old_colnames[start_index:length(old_colnames)]
+
+  new_names <- str_remove(cols_to_rename, "^avg_read_count_")
+  new_names <- str_remove(new_names, "_S\\d+_trimmed\\.star\\.hg38\\._arriba_final\\.csv$") %>%
+    sub("_20[0-9]{6}$", "", .)
+
+  colnames(Arriba)[start_index:length(old_colnames)] <- new_names
+
+  Arriba <- Arriba%>%
+    dplyr::rename(Chr1 = chrom1, Chr2 = chrom2, gene1 = gene_id1, gene2 = gene_id2, `#pts` = `#PatientsWithVarCall`) %>%
+    dplyr::relocate(type, .before = `#pts`)
+
+  col_defs <- lapply(length(colnames(Arriba)), function(idx) {
+    list(targets = 9, className = "dt-separator")
+  })
+
+  htmltools::tagList(
+    tags$div(
+      id = "fusion-table-wrapper",
+      HTML("<style>#fusion-table-wrapper table.dataTable td.dt-separator { border-right: 2px solid #999; }</style>"),
+      DT::datatable(
+        Arriba,
+        extensions = c("Buttons", "FixedHeader", "FixedColumns"),
+        options = list(
+          dom = 'Bfrtip',
+          buttons = list('copy', 'excel'),
+          paging = FALSE,
+          autoWidth = TRUE,
+          scrollX = TRUE,
+          fixedColumns = list(leftColumns = 10),
+          fixedHeader = TRUE,
+          columnDefs = col_defs
+        ),
+        rownames = FALSE,
+        class = 'cell-border stripe hover nowrap'
+      )
+    )
+  )
+} else {
+  cat("<div style='color: red;'>⚠️ No .xlsx file found in ./Arriba_Fusions/</div>")
+}
+
+```
+
+## Mutations
+####### Three columns for each patient, and each column represents:
+####### 1st column: Total Depth
+####### 2nd column: Allele Depth
+####### 3rd column: Allele Frequency (%)
+
+```{r, results='asis', echo=FALSE}
+variant_file <- list.files("./Variants", pattern = "\\.xlsx$", full.names = TRUE)[1]
+
+if (!is.na(variant_file)) {
+  Variants <- read.xlsx(variant_file)
+
+  af_cols <- grep("^AF\\.", colnames(Variants), value = TRUE)
+  # Variants[ , af_cols] <- round(Variants[ , af_cols] * 100, 1)
+
+  Variants$`#pts` <- rowSums(!is.na(Variants[af_cols]) & Variants[af_cols] > 0)
+  Variants <- Variants %>% relocate(`#pts`, .after = p.HGVS)
+
+  start_index <- which(colnames(Variants) == "#pts")
+  cols_to_rename <- colnames(Variants)[start_index:length(colnames(Variants))]
+  new_names <- sub("_20[0-9]{6}$", "", cols_to_rename)
+  colnames(Variants)[start_index:length(colnames(Variants))] <- new_names
+
+  if ("Chrom" %in% colnames(Variants)) {
+    Variants <- Variants %>% dplyr::rename(Chr = Chrom)
+  }
+
+  fixed_cols <- c("Chr", "Pos", "Gene", "c.HGVS", "p.HGVS", "#pts")
+  ad_cols <- grep("^AD\\.", colnames(Variants), value = TRUE)
+  dp_cols <- grep("^DP\\.", colnames(Variants), value = TRUE)
+  af_cols <- grep("^AF\\.", colnames(Variants), value = TRUE)
+
+  # Extract raw IDs from AD. columns
+  sample_ids <- gsub("^AD\\.", "", ad_cols)
+
+  # Build sample column order (DP, AD, AF for each sample)
+  sample_cols <- unlist(lapply(sample_ids, function(id) {
+    c(paste0("DP.", id), paste0("AD.", id), paste0("AF.", id))
+  }))
+
+  new_order <- c(fixed_cols, sample_cols)
+  new_order <- new_order[new_order %in% colnames(Variants)]
+  Variants <- Variants[, new_order]
+
+  # Rename headers: remove DP./AD./AF. and keep only sample IDs
+  pretty_colnames <- colnames(Variants)
+  pretty_colnames <- gsub("^(DP|AD|AF)\\.", "", pretty_colnames)
+  
+  # Keep only the portion like "06_01_AMR"
+  pretty_colnames <- sub("^(\\d{2}_\\d{2}_[A-Z]+).*", "\\1", pretty_colnames)
+
+  all_cols <- colnames(Variants)
+  sample_start_idx <- which(all_cols == paste0("DP.", sample_ids[1]))
+  separator_indices <- seq(sample_start_idx + 2, length(all_cols), by = 3)
+  col_defs <- lapply(separator_indices, function(idx) {
+    list(targets = c(5, idx - 1), className = "dt-separator")
+  })
+
+  # Indices of sample columns for header coloring (1-based)
+  sample_col_indices_1based <- which(colnames(Variants) %in% sample_cols)
+
+  # Group sample columns by patient: every 3 columns correspond to one patient
+  num_patients <- length(sample_ids)
+  color_classes <- c("sample-header-blue", "sample-header-red")
+
+  # Create a list to hold columnDefs for header colors, alternating colors
+  color_col_defs <- list()
+  for (i in seq_len(num_patients)) {
+    patient_cols <- ((i-1)*3 + 1):((i-1)*3 + 3)
+    cols_i <- sample_col_indices_1based[patient_cols]
+    cols_i_0based <- cols_i - 1
+    color_class <- color_classes[(i %% 2) + 1]
+    color_col_defs[[i]] <- list(
+      targets = cols_i_0based,
+      className = color_class
+    )
+  }
+
+  # Combine with existing col_defs (like dt-separator)
+  all_col_defs <- c(col_defs, color_col_defs)
+
+  htmltools::tagList(
+    tags$style(HTML("
+      table.dataTable thead th.sample-header-blue {
+        background-color: #1f77b4 !important;
+        color: white !important;
+        border: 1px solid #999 !important;
+      }
+      table.dataTable thead th.sample-header-red {
+        background-color: #d62728 !important;
+        color: white !important;
+        border: 1px solid #999 !important;
+      }
+      #variants-table-wrapper table.dataTable td.dt-separator {
+        border-right: 2px solid #999;
+      }
+    ")),
+    tags$div(
+      id = "variants-table-wrapper",
+      DT::datatable(
+        Variants,
+        colnames = pretty_colnames,
+        extensions = c("Buttons", "FixedHeader", "FixedColumns"),
+        options = list(
+          dom = 'Bfrtip',
+          buttons = list('copy', 'excel'),
+          paging = FALSE,
+          autoWidth = FALSE,
+          scrollX = TRUE,
+          fixedHeader = TRUE,
+          fixedColumns = list(leftColumns = 6),
+          columnDefs = all_col_defs
+        ),
+        rownames = FALSE,
+        class = 'cell-border stripe hover nowrap',
+        escape = FALSE
+      )
+    )
+  )
+} else {
+  cat("<div style='color: red;'>⚠️ No Excel file found in ./Variants/</div>")
+}
+
+
+
+
+
+```
+
+
