@@ -3,6 +3,8 @@ The custom RMS script, along with executable batch script, CSS for styling the H
 Create a directory "Summaries" and place your input files for small variant in Sub-directory "Variants", atypical splicing events in "NovelSplices", fusion caller (Arriba) population summary in "Arriba_Fusions" and sample sheet in "Sample_IDs".
 Place the RMD, .bat, CSS and R script in the "Summaries" folder and run the executable .bat file.
 
-OR if using LINUX, run "RScript --vanilla RMD_script.rmd
+OR if using LINUX, run:
+
+"RScript --vanilla RMD_script.rmd"
 
 WARNING: Make sure the dependency scripts are in the same directory, modify the paths of each file/program according to your file system, in all of the scripts before running the scripts. 
